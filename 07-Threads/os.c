@@ -3,11 +3,19 @@
 #include "reg.h"
 #include "threads.h"
 
+/*define input limitation*/
+#define MAX 50
+
 /* USART TXE Flag
  * This flag is cleared when data is written to USARTx_DR and
  * set when that data is transferred to the TDR
  */
 #define USART_FLAG_TXE	((uint16_t) 0x0080)
+
+/*USART RXNE Flag
+ * When it is set, received data is ready to be read
+ */
+#define USART_FLAG_RXNE	((uint16_t) 0x0020)
 
 void usart_init(void)
 {
@@ -36,12 +44,19 @@ void print_str(const char *str)
 	}
 }
 
-char print_char()
+void print_char(const char *str)
 {
 		while (!(*(USART2_SR) & USART_FLAG_TXE));
+		*(USART2_DR) = (*str & 0xFF);
+}
+
+char get_char()
+{
+		while (!(*(USART2_SR) & USART_FLAG_RXNE));
 		return *(USART2_DR)  & 0xFF;
 }
 
+/*
 static void delay(volatile int count)
 {
 	count *= 50000;
@@ -56,21 +71,18 @@ static void busy_loop(void *str)
 		delay(1000);
 	}
 }
+*/
 
-void test1(void *userdata)
+void shell(void *userdata)
 {
-	busy_loop(userdata);
+	char buffer[MAX];
+	int index = 0;
+	while(1){
+		buffer[index] = get_char();
+		print_char(&buffer[index]);
+	}
 }
 
-void test2(void *userdata)
-{
-	busy_loop(userdata);
-}
-
-void test3(void *userdata)
-{
-	busy_loop(userdata);
-}
 
 /* 72MHz */
 #define CPU_CLOCK_HZ 72000000
@@ -80,18 +92,12 @@ void test3(void *userdata)
 
 int main(void)
 {
-	const char *str1 = "Task1", *str2 = "Task2", *str3 = "Task3";
+	const char *str1 = "Task1_shell";
 
 	usart_init();
 
-	if (thread_create(test1, (void *) str1) == -1)
-		print_str("Thread 1 creation failed\r\n");
-
-	if (thread_create(test2, (void *) str2) == -1)
-		print_str("Thread 2 creation failed\r\n");
-
-	if (thread_create(test3, (void *) str3) == -1)
-		print_str("Thread 3 creation failed\r\n");
+	if (thread_create(shell, (void *) str1) == -1)
+		print_str("Shell creation failed\r\n");
 
 	/* SysTick configuration */
 	*SYSTICK_LOAD = (CPU_CLOCK_HZ / TICK_RATE_HZ) - 1UL;
