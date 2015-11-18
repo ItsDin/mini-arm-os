@@ -36,6 +36,12 @@ void print_str(const char *str)
 	}
 }
 
+char print_char()
+{
+		while (!(*(USART2_SR) & USART_FLAG_TXE));
+		return *(USART2_DR)  & 0xFF;
+}
+
 static void delay(volatile int count)
 {
 	count *= 50000;
