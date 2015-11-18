@@ -63,6 +63,13 @@ void shell(void *userdata)
 	while(1){
 		buffer[index] = get_char();
 		print_char(&buffer[index]);
+
+		/*detect ENTER (13)*/
+		if(buffer[index] == 13){
+			print_str("\n");
+			print_str("It is ENTER");
+			buffer[index] = '\0';
+		}
 	}
 }
 
