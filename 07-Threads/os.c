@@ -17,6 +17,8 @@
  */
 #define USART_FLAG_RXNE	((uint16_t) 0x0020)
 
+int lock = 0;
+
 void usart_init(void)
 {
 	*(RCC_APB2ENR) |= (uint32_t) (0x00000001 | 0x00000004);
@@ -46,8 +48,10 @@ void print_str(const char *str)
 
 void print_char(const char *str)
 {
+	if(*str){
 		while (!(*(USART2_SR) & USART_FLAG_TXE));
 		*(USART2_DR) = (*str & 0xFF);
+	}
 }
 
 char get_char()
@@ -56,19 +60,139 @@ char get_char()
 		return *(USART2_DR)  & 0xFF;
 }
 
+int fib(int number)
+{
+	return number;
+	//if(number==0) return 0;
+}
+
+char *strtok(char *str, char *symbol)
+{
+	static char *tmp;
+	if(str!=NULL)
+	{
+		tmp = str;
+		while((*tmp )!= *symbol)
+			 tmp++;
+		*tmp = '\0';
+	}else{
+		tmp++;
+		if((*tmp)=='\0') return NULL;
+		str = tmp;
+		while((*tmp != '\0') || (*tmp )!= *symbol)
+		{
+			if(*tmp == '\0') break;
+			 tmp++;
+		}
+		*tmp = '\0';
+	}
+	return str;
+}
+
+int strcmp(const char *str1, const char *str2)
+{
+	char c1, c2;
+	while(*str1)
+	{
+		c1 = *str1++;
+		c2 = *str2++;
+		if(c1!=c2) return 1;
+	}
+	return 0;
+}
+
+int strlen(char *s)
+{
+	int i;
+	for(i=0; s[i]!='\0'; i++);
+	return i;
+}
+
+void reverse(char *s)
+{
+	int i, j;
+	for(i=0, j=strlen(s)-1; i<j; i++,j-- )
+	{
+		int c = s[i];
+		s[i] = s[j];
+		s[j] = c;
+	}
+}
+
+int atoi(char *s)
+{
+	int sum = 0,i;
+	for(i=0; s[i]!='\0'; i++)
+		sum = sum*10 + s[i] - '\0';
+	return sum;
+}
+
+void itoa(int n, char s[])
+{
+	int flag = 1;
+	if(n<0)
+	{
+		n = -n;
+		flag = 0;
+	}
+	int i=0;
+	while(n!=0)
+	{
+		s[i++] = n%10 + '\0';
+		n = n/10;
+	}
+	if(!flag)
+		s[i++] = '-';
+	s[i] = '\0';
+	reverse(s);
+	print_str((char *)s);
+	print_str("\n");
+}
+
+void command_fib(void *number)
+{
+	while(1)
+	{
+		while(lock == 0);
+		char *num = (char *)number;
+		int result = fib(atoi(num));
+		itoa(result, num);
+		lock = 0;
+	}
+}
+
+void command(char *cmd)
+{
+	char *c = strtok((char *)cmd, " ");
+	if(!strcmp(c, "fib"))
+	{
+		c = strtok(NULL, " ");
+		if (thread_create(command_fib, (void *)  c) == -1)
+			print_str("Thread command_fib  creation failed\r\n");
+		lock = 1;
+	}
+}
+
 void shell(void *userdata)
 {
 	char buffer[MAX];
 	int index = 0;
 	while(1){
-		buffer[index] = get_char();
-		print_char(&buffer[index]);
-
-		/*detect ENTER (13)*/
-		if(buffer[index] == 13){
-			print_str("\n");
-			print_str("It is ENTER");
-			buffer[index] = '\0';
+		while(lock==1);
+		print_str("din@din-Inspiron-N3010$ ");
+		for(index=0; index<MAX; index++)
+		{
+			buffer[index] = get_char();
+	
+			/*detect ENTER (13)*/
+			if(buffer[index] == 13)
+			{
+				print_str("\n");
+				buffer[index] = '\0';
+				command(buffer);
+				break;
+			}
+			print_char(&buffer[index]);
 		}
 	}
 }
@@ -87,7 +211,7 @@ int main(void)
 	usart_init();
 
 	if (thread_create(shell, (void *) str1) == -1)
-		print_str("Shell creation failed\r\n");
+		print_str("Thread shell creation failed\r\n");
 
 	/* SysTick configuration */
 	*SYSTICK_LOAD = (CPU_CLOCK_HZ / TICK_RATE_HZ) - 1UL;
