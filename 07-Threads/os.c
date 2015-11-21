@@ -62,8 +62,27 @@ char get_char()
 
 int fib(int number)
 {
-	return number;
-	//if(number==0) return 0;
+	if(number==0) return 0;
+	int result, zero=0;
+	asm volatile("push {r3, r4, r5, r6}");
+	asm ("subs r4, %[num], %[int0]"::[num] "r" (number), [int0]"r" (zero));
+	asm ("mov r3, #-1\n"
+					"mov r4,#1\n"
+					"mov r6,#0\n"
+					"mov r5,#0\n"
+			".Loop:\n"
+					"add r5,r4,r3\n"
+					"mov r3,r4\n"
+					"mov r4,r5\n"
+
+					"add r6,r6,#1\n"
+					"cmp r0,r6\n"
+					"bcs .Loop"
+					);
+	asm ("mov %[fibresult], r4":[fibresult]"=r"(result));
+	asm volatile("pop {r3, r4, r5, r6 }	");
+
+	return result;
 }
 
 char *strtok(char *str, char *symbol)
@@ -113,7 +132,7 @@ void reverse(char *s)
 	int i, j;
 	for(i=0, j=strlen(s)-1; i<j; i++,j-- )
 	{
-		int c = s[i];
+		char c = s[i];
 		s[i] = s[j];
 		s[j] = c;
 	}
@@ -123,7 +142,7 @@ int atoi(char *s)
 {
 	int sum = 0,i;
 	for(i=0; s[i]!='\0'; i++)
-		sum = sum*10 + s[i] - '\0';
+		sum = sum*10 + s[i] - '0';
 	return sum;
 }
 
@@ -138,14 +157,14 @@ void itoa(int n, char s[])
 	int i=0;
 	while(n!=0)
 	{
-		s[i++] = n%10 + '\0';
+		s[i++] = n%10 + '0';
 		n = n/10;
 	}
 	if(!flag)
 		s[i++] = '-';
 	s[i] = '\0';
 	reverse(s);
-	print_str((char *)s);
+	print_str(s);
 	print_str("\n");
 }
 
